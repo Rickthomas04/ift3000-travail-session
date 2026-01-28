@@ -1,0 +1,716 @@
+﻿@page "/"
+
+<PageTitle>Play</PageTitle>
+
+<div class="container">
+    <div class="left-panel">
+        <h1>Battlefield</h1>
+        <GridComponent Rows="@rows" Cols="@cols" ClickAction="@HandleClick" HoverAction="@((_, _) => {})" LeaveAction="@((_, _) => {})" @ref="gridComponent" />
+        <div style="height: 20px" />
+        <ConsoleComponent Capacity="10" @ref=consoleComponent />
+    </div>
+    <div class="vsep" />
+    <div class="right-panel">
+        <h1>Controls</h1>
+        <div>
+            <div class="row" style="background-color: honeydew">
+                <textarea style="width: 300px" rows="3" disabled="@locked" @bind=dump />
+            </div>
+            <div class="row" style="background-color: honeydew">
+                <button class="form-button" disabled="@locked" onclick="@ImportScenario">Import</button>
+            </div>
+            <div class="hsep" />
+            <div class="row" style="height: 200px">
+                <div class="grid-container" style="background-color: lavenderblush">
+                    <button class="navigation north" style="@($"transform: rotate({rotationDegrees[Ship.Direction.North]}deg);")" disabled="@(!locked || spy is null || spy.Facing == Ship.Direction.South)" @onclick="() => Navigate(Ship.Direction.North)">@currentTexts[Ship.Direction.North]</button>
+                    <button class="navigation west" style="@($"transform: rotate({rotationDegrees[Ship.Direction.West]}deg);")" disabled="@(!locked || spy is null || spy.Facing == Ship.Direction.East)" @onclick="() => Navigate(Ship.Direction.West)">@currentTexts[Ship.Direction.West]</button>
+                    <button class="navigation east" style="@($"transform: rotate({rotationDegrees[Ship.Direction.East]}deg);")" disabled="@(!locked || spy is null || spy.Facing == Ship.Direction.West)" @onclick="() => Navigate(Ship.Direction.East)">@currentTexts[Ship.Direction.East]</button>
+                    <button class="navigation south" style="@($"transform: rotate({rotationDegrees[Ship.Direction.South]}deg);")" disabled="@(!locked || spy is null || spy.Facing == Ship.Direction.North)" @onclick="() => Navigate(Ship.Direction.South)">@currentTexts[Ship.Direction.South]</button>
+                </div>
+                <div style="width: 2px; height: 100%; background-color: gray" />
+                <div class="grid-container" style="background-color: ivory">
+                    <button class="navigation north" disabled="@(!locked || drone is null)" @onclick="() => MoveDrone(Ship.Direction.North)">↑</button>
+                    <button class="navigation west" disabled="@(!locked || drone is null)" @onclick="() => MoveDrone(Ship.Direction.West)">←</button>
+                    <button class="navigation east" disabled="@(!locked || drone is null)" @onclick="() => MoveDrone(Ship.Direction.East)">→</button>
+                    <button class="navigation south" disabled="@(!locked || drone is null)" @onclick="() => MoveDrone(Ship.Direction.South)">↓</button>
+                </div>
+            </div>
+            <div class="hsep" />
+            <div class="row">
+                <input type="checkbox" disabled="@(!locked)" @bind=debug>Debug
+            </div>
+            <div class="row">
+                <div class="choices" style="background-color: azure">
+                    <button class="option" disabled="@(!locked || !debug)" @onclick="() => Debug(Intelligence.repairSpy)">Repair spy</button>
+                    <button class="option" disabled="@(!locked || !debug)" @onclick="() => Debug(Intelligence.repairOtherShip)">Repair other ship</button>
+                    <button class="option" disabled="@(!locked || !debug)" @onclick="() => Debug(Intelligence.shootAtSpy)">Shoot at spy</button>
+                    <button class="option" disabled="@(!locked || !debug || debugNextHit)" @onclick="() => debugNextHit = true">Intercept next hit</button>
+                </div>
+                <div class="choices" style="background-color: ghostwhite">
+                    <button class="option" disabled="@(!locked || !debug)" @onclick="() => Debug(Intelligence.launchTorpedo)">Launch torpedo</button>
+                    <button class="option" disabled="@(!locked || !debug)" @onclick="() => Debug(Intelligence.advanceTorpedoes)">Advance torpedoes</button>
+                    <button class="option" disabled="@(!locked || !debug)" @onclick="() => DebugPath(Intelligence.advancePlane)">Advance plane</button>
+                    <button class="option" disabled="@(!locked || !debug)" @onclick="() => DebugBoth(Intelligence.shiftPath)">Shift path</button>
+                    <button class="option" disabled="@(!locked || !debug)" @onclick="() => DebugBoth(Intelligence.revertPath)">Revert path</button>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+    .form-button {
+        width: 80px;
+        height: 30px;
+        line-height: 10px;
+        font-size: medium;
+        text-align: center;
+        padding: 10px;
+    }
+
+    .grid-container {
+        display: grid;
+        grid-template-columns: 1fr 1fr 1fr;
+        grid-template-rows: 1fr 1fr 1fr;
+        gap: 10px;
+    }
+
+    .navigation {
+        width: 50px;
+        height: 50px;
+        font: large;
+    }
+
+    .north {
+        grid-column: 2;
+        grid-row: 1;
+    }
+
+    .west {
+        grid-column: 1;
+        grid-row: 2;
+    }
+
+    .east {
+        grid-column: 3;
+        grid-row: 2;
+    }
+
+    .south {
+        grid-column: 2;
+        grid-row: 3;
+    }
+
+    .choices {
+        width: 50%;
+        text-align: center;
+        align-items: center;
+    }
+
+    .option {
+        width: 100px;
+        height: 40px;
+        text-align: center;
+        align-items: center;
+        margin: 5px;
+    }
+
+    .row {
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        padding: 10px;
+        gap: 15px;
+    }
+
+    span {
+        width: 70px;
+    }
+
+    input {
+        width: 35px;
+    }
+
+    .container {
+        display: flex;
+        height: 90vh;
+    }
+
+    .left-panel {
+        flex-grow: 1;
+        padding: 10px;
+        text-align: center;
+    }
+
+    .vsep {
+        width: 2px;
+        margin-left: 50px;
+        margin-right: 50px;
+        background-color: gray;
+    }
+
+    .hsep {
+        width: 100%;
+        height: 2px;
+        background-color: gray;
+    }
+
+    .right-panel {
+        width: 400px;
+        padding: 10px;
+        text-align: center;
+    }
+</style>
+
+@code {
+    public const string ClearChar = "\u200B";
+    public const string ClearColor = "White";
+    public const string FogColor = "Gainsboro";
+    public const string SecondaryChar = "⬤";
+    public const string HealthChar = "✕";
+    public const string ClearBorderColor = "Lightgray";
+
+    private int rows = 10;
+    private int cols = 15;
+
+    private GridComponent? gridComponent;
+    private ConsoleComponent? consoleComponent;
+
+    private string dump = "";
+    private bool locked = false;
+    private Grid.Grid<Navigation.Sector>? grid;
+    private Grid.Grid<bool>? fog;
+
+    private List<Ship.Ship> ships = [];
+    private Ship.Ship? spy = null;
+    private Tuple<int, int>? drone;
+    private IEnumerable<Tuple<int, int>> torpedoes = [];
+    private int pathLength = 0;
+    private Stream.Stream<Tuple<int, int>> stream = Stream.Stream<Tuple<int, int>>.Empty;
+
+    private Ship.Direction nextCW = Navigation.getNextDirection(Ship.Direction.North, Navigation.Rotation.Clockwise);
+    private Ship.Direction nextCCW = Navigation.getNextDirection(Ship.Direction.North, Navigation.Rotation.Counterclockwise);
+
+    private bool debug = true;
+    private bool debugNextHit = false;
+
+    private readonly Dictionary<Ship.Direction, int> rotationDegrees = new()
+    {
+        { Ship.Direction.North, 0 },
+        { Ship.Direction.South, 0 },
+        { Ship.Direction.East, 0 },
+        { Ship.Direction.West, 0 },
+    };
+    private readonly Dictionary<Navigation.Rotation, string> rotations = new()
+    {
+        { Navigation.Rotation.Clockwise, "⭮" },
+        { Navigation.Rotation.Counterclockwise, "⭯" },
+    };
+    private readonly Dictionary<Ship.Direction, string> directions = new()
+    {
+        { Ship.Direction.North, "↑" },
+        { Ship.Direction.South, "↓" },
+        { Ship.Direction.East, "→" },
+        { Ship.Direction.West, "←" },
+    };
+    private readonly Dictionary<Ship.Direction, string> currentTexts = new()
+    {
+        { Ship.Direction.North, "↑" },
+        { Ship.Direction.South, "↓" },
+        { Ship.Direction.East, "→" },
+        { Ship.Direction.West, "←" },
+    };
+
+    private void ImportScenario()
+    {
+        Battlefield.Data data = Serialization.loadData(dump);
+        (rows, cols) = data.Dims;
+        gridComponent?.ForceRefresh(rows, cols);
+        grid = Battlefield.loadData(data);
+
+        ships = data.Ships.ToList();
+        foreach (Ship.Ship ship in ships)
+        {
+            if (ship.Name == Ship.Name.Spy)
+            {
+                spy = ship;
+                UpdateNavigationTexts();
+
+                drone = ship.Center;
+            }
+        }
+
+        fog = Battlefield.getFog(grid, drone!.Item1, drone.Item2);
+
+        if (ships.Any(ship => ship.Name == Ship.Name.AircraftCarrier))
+        {
+            var path = Intelligence.getPlanePath(grid);
+            pathLength = path.Length;
+            stream = Stream.cycleList(path);
+        }
+
+        DrawEverything();
+
+        locked = true;
+    }
+
+    private void Navigate(Ship.Direction direction)
+    {
+        if (spy is not null)
+        {
+            if (direction == spy.Facing)
+            {
+                MoveForward();
+            }
+            else
+            {
+                if (direction == nextCW)
+                {
+                    RotateForward(Navigation.Rotation.Clockwise);
+                }
+                else if (direction == nextCCW)
+                {
+                    RotateForward(Navigation.Rotation.Counterclockwise);
+                }
+                else
+                {
+                    consoleComponent?.AddMessage("Unexpected error.");
+                }
+            }
+        }
+    }
+
+    private void MoveForward()
+    {
+        if (Navigation.canMoveForward(spy, grid))
+        {
+            EraseEverything();
+
+            ships.Remove(spy!);
+            spy = Navigation.moveForward(spy);
+            ships.Add(spy);
+
+            grid = Battlefield.replaceShip(spy, grid);
+            foreach (Tuple<int, int> torpedo in torpedoes)
+            {
+                if (spy.Coords.Contains(torpedo))
+                {
+                    consoleComponent?.AddMessage($"Collided with torpedo at position={torpedo}.");
+                }
+            }
+            torpedoes = Battlefield.getTorpedoes(grid);
+            fog = Battlefield.getFog(grid, drone!.Item1, drone.Item2);
+
+            PostMove();
+            RevealPerimeter();
+
+            DrawEverything();
+        }
+        else
+        {
+            consoleComponent?.AddMessage("Cannot move forward.");
+        }
+    }
+
+    private void RotateForward(Navigation.Rotation rotation)
+    {
+        if (Navigation.canRotateForward(spy, rotation, grid))
+        {
+            EraseEverything();
+
+            ships.Remove(spy!);
+            spy = Navigation.rotateForward(spy, rotation);
+            ships.Add(spy);
+
+            grid = Battlefield.replaceShip(spy, grid);
+            foreach (Tuple<int, int> torpedo in torpedoes)
+            {
+                if (spy.Coords.Contains(torpedo))
+                {
+                    consoleComponent?.AddMessage($"Collided with torpedo at position={torpedo}.");
+                }
+            }
+            torpedoes = Battlefield.getTorpedoes(grid);
+            fog = Battlefield.getFog(grid, drone!.Item1, drone.Item2);
+
+            ResetNavigationTexts();
+            UpdateNavigationTexts();
+
+            PostMove();
+            RevealPerimeter();
+
+            DrawEverything();
+        }
+        else
+        {
+            consoleComponent?.AddMessage($"Cannot rotate forward in rotation={rotation}.");
+        }
+    }
+
+    private void MoveDrone(Ship.Direction direction)
+    {
+        if (Navigation.canMoveDrone(drone!.Item1, drone.Item2, direction, grid))
+        {
+            EraseEverything();
+
+            drone = Navigation.moveDrone(drone.Item1, drone.Item2, direction);
+            fog = Battlefield.getFog(grid, drone!.Item1, drone.Item2);
+
+            PostMove();
+
+            DrawEverything();
+        }
+        else
+        {
+            consoleComponent?.AddMessage($"Cannot move drone in direction={direction}.");
+        }
+    }
+
+    private void PostMove()
+    {
+        if (!debug)
+        {
+            if (Battlefield.getRemainingHealth(Ship.Name.AircraftCarrier, grid) > 0)
+            {
+                stream = Intelligence.advancePlane(stream);
+                Tuple<int, int> plane = Stream.nth(stream, 0);
+                var selectedName = Battlefield.getSelectedName(plane.Item1, plane.Item2, grid);
+                if (selectedName != null && selectedName.Value == Ship.Name.Spy)
+                {
+                    grid = Battlefield.hit(plane.Item1, plane.Item2, grid);
+                    consoleComponent?.AddMessage($"Plane dropped missile on Spy at position={(plane.Item1, plane.Item2)}.");
+                }
+            }
+
+            int prevHealth = Battlefield.getRemainingHealth(Ship.Name.Spy, grid);
+            grid = Intelligence.advanceTorpedoes(grid);
+            int currentHealth = Battlefield.getRemainingHealth(Ship.Name.Spy, grid);
+            if (currentHealth < prevHealth)
+            {
+                consoleComponent?.AddMessage($"Collided with torpedo.");
+            }
+            torpedoes = Battlefield.getTorpedoes(grid);
+
+            if (currentHealth == 0)
+            {
+                consoleComponent?.AddMessage($"Game lost !");
+            }
+        }
+    }
+
+    private void RevealPerimeter()
+    {
+        if (!debug)
+        {
+            var perimeter = Ship.getPerimeter(spy, rows, cols);
+            int aircraftCarrierHealth = Battlefield.getRemainingHealth(Ship.Name.AircraftCarrier, grid);
+            bool revealedPatrolBoat = false;
+            bool revealedAircraftCarrier = false;
+            bool revealedOther = false;
+            foreach (Ship.Ship ship in ships)
+            {
+                if (ship != spy && Battlefield.getRemainingHealth(ship.Name, grid) > 0)
+                {
+                    foreach (Tuple<int, int> coord in ship.Coords)
+                    {
+                        if (perimeter.Contains(coord))
+                        {
+                            if (ship.Name == Ship.Name.PatrolBoat)
+                            {
+                                revealedPatrolBoat = true;
+                            }
+                            else if (aircraftCarrierHealth > 0)
+                            {
+                                if (ship.Name == Ship.Name.AircraftCarrier)
+                                {
+                                    revealedAircraftCarrier = true;
+                                }
+                                else
+                                {
+                                    revealedOther = true;
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+
+            if (revealedPatrolBoat)
+            {
+                grid = Intelligence.repairOtherShip(grid);
+                consoleComponent?.AddMessage($"PatrolBoat repaired other ship.");
+            }
+            if (revealedAircraftCarrier)
+            {
+                stream = Intelligence.revertPath(grid, stream);
+                consoleComponent?.AddMessage($"AircraftCarrier may have reverted plane path.");
+            }
+            if (revealedOther)
+            {
+                stream = Intelligence.shiftPath(grid, stream);
+                consoleComponent?.AddMessage($"AircraftCarrier may have shifted plane path.");
+            }
+
+            if (Battlefield.getRemainingHealth(Ship.Name.Spy, grid) == 0)
+            {
+                consoleComponent?.AddMessage($"Game lost !");
+            }
+        }
+    }
+
+    private void HandleClick(int i, int j)
+    {
+        if (Battlefield.canHit(i, j, grid))
+        {
+            EraseEverything();
+
+            Dictionary<Ship.Name, int> prevHealths = [];
+            foreach (Ship.Ship ship in ships)
+            {
+                prevHealths[ship.Name] = Battlefield.getRemainingHealth(ship.Name, grid);
+            }
+
+            if (debug)
+            {
+                if (debugNextHit)
+                {
+                    grid = Intelligence.interceptNextHit(i, j, grid);
+                    debugNextHit = false;
+                    StateHasChanged();
+                }
+                else
+                {
+                    grid = Battlefield.hit(i, j, grid);
+                }
+            }
+            else
+            {
+                if (prevHealths.GetValueOrDefault(Ship.Name.Cruiser, 0) > 0)
+                {
+                    grid = Intelligence.interceptNextHit(i, j, grid);
+                    consoleComponent?.AddMessage($"Cruiser may have intercepted hit.");
+                }
+                else
+                {
+                    grid = Battlefield.hit(i, j, grid);
+                }
+
+                if (prevHealths.GetValueOrDefault(Ship.Name.Submarine, 0) > Battlefield.getRemainingHealth(Ship.Name.Submarine, grid))
+                {
+                    grid = Intelligence.launchTorpedo(grid);
+                    consoleComponent?.AddMessage($"Submarine launched torpedo after being hit.");
+                }
+            }
+            torpedoes = Battlefield.getTorpedoes(grid);
+
+            if (!debug && prevHealths.GetValueOrDefault(Ship.Name.Destroyer, 0) == 1 && Battlefield.getRemainingHealth(Ship.Name.Destroyer, grid) == 0)
+            {
+                grid = Intelligence.shootAtSpy(grid);
+                consoleComponent?.AddMessage($"Destroyer shot missile on Spy before sinking.");
+            }
+
+            Dictionary<Ship.Name, int> currentHealths = [];
+            foreach (KeyValuePair<Ship.Name, int> pair in prevHealths)
+            {
+                int currentHealth = Battlefield.getRemainingHealth(pair.Key, grid);
+                if (currentHealth < pair.Value && currentHealth == 0)
+                {
+                    consoleComponent?.AddMessage($"Sinked ship name={pair.Key}.");
+                    if (!debug && pair.Key == Ship.Name.PatrolBoat)
+                    {
+                        grid = Intelligence.repairSpy(grid);
+                        consoleComponent?.AddMessage($"Spy repaired itself.");
+                    }
+                }
+                currentHealths[pair.Key] = currentHealth;
+            }
+            if (currentHealths[Ship.Name.Spy] == 0)
+            {
+                consoleComponent?.AddMessage($"Game lost !");
+            }
+            else if (currentHealths.Where(pair => pair.Key != Ship.Name.Spy).All(pair => pair.Value == 0))
+            {
+                consoleComponent?.AddMessage($"Game won !");
+            }
+
+            DrawEverything();
+        }
+    }
+
+    private void ResetNavigationTexts()
+    {
+        currentTexts[nextCW] = directions[nextCW];
+        currentTexts[nextCCW] = directions[nextCCW];
+        rotationDegrees[nextCW] = 0;
+        rotationDegrees[nextCCW] = 0;
+    }
+
+    private void UpdateNavigationTexts()
+    {
+        nextCW = Navigation.getNextDirection(spy!.Facing, Navigation.Rotation.Clockwise);
+        nextCCW = Navigation.getNextDirection(spy.Facing, Navigation.Rotation.Counterclockwise);
+
+        currentTexts[nextCW] = rotations[Navigation.Rotation.Clockwise];
+        currentTexts[nextCCW] = rotations[Navigation.Rotation.Counterclockwise];
+        int degrees = Navigation.getDegrees(spy.Facing);
+        rotationDegrees[nextCW] = degrees;
+        rotationDegrees[nextCCW] = degrees;
+    }
+
+    private void Debug(Func<Grid.Grid<Navigation.Sector>, Grid.Grid<Navigation.Sector>> callback)
+    {
+        EraseEverything();
+
+        grid = callback.Invoke(grid!);
+        torpedoes = Battlefield.getTorpedoes(grid);
+
+        DrawEverything();
+    }
+
+    private void DebugPath(Func<Stream.Stream<Tuple<int, int>>, Stream.Stream<Tuple<int, int>>> callback)
+    {
+        EraseEverything();
+
+        stream = callback.Invoke(stream);
+        torpedoes = Battlefield.getTorpedoes(grid);
+
+        DrawEverything();
+    }
+
+    private void DebugBoth(Func<Grid.Grid<Navigation.Sector>, Stream.Stream<Tuple<int, int>>, Stream.Stream<Tuple<int, int>>> callback)
+    {
+        EraseEverything();
+
+        stream = callback.Invoke(grid!, stream);
+        torpedoes = Battlefield.getTorpedoes(grid);
+
+        DrawEverything();
+    }
+
+    private void EraseEverything()
+    {
+        // Fog
+        for (int i = 0; i < rows; i++)
+        {
+            for (int j = 0; j < cols; j++)
+            {
+                gridComponent?.UpdateColor(i, j, ClearColor);
+            }
+        }
+
+        // Ships
+        foreach (Ship.Ship ship in ships)
+        {
+            foreach (Tuple<int, int> coord in ship.Coords)
+            {
+                gridComponent?.UpdateColor(coord.Item1, coord.Item2, ClearColor);
+                gridComponent?.UpdateMiddleText(coord.Item1, coord.Item2, ClearChar);
+            }
+            gridComponent?.UpdateText(ship.Center.Item1, ship.Center.Item2, ClearChar);
+        }
+
+        // Torpedoes
+        foreach (Tuple<int, int> coord in torpedoes)
+        {
+            gridComponent?.UpdateSecondaryText(coord.Item1, coord.Item2, ClearChar);
+            gridComponent?.UpdateSecondaryColor(coord.Item1, coord.Item2, ClearColor);
+        }
+
+        // Drone
+        if (drone is not null)
+        {
+            gridComponent?.UpdateSecondaryText(drone.Item1, drone.Item2, ClearChar);
+            gridComponent?.UpdateSecondaryColor(drone.Item1, drone.Item2, ClearColor);
+        }
+
+        if (ships.Any(ship => ship.Name == Ship.Name.AircraftCarrier))
+        {
+            // Plane
+            Tuple<int, int> plane = Stream.nth(stream, 0);
+            gridComponent?.UpdateSecondaryText(plane.Item1, plane.Item2, ClearChar);
+            gridComponent?.UpdateSecondaryColor(plane.Item1, plane.Item2, ClearColor);
+
+            // Path
+            var coords = Stream.peak(pathLength, stream);
+            foreach (Tuple<int, int> coord in coords)
+            {
+                gridComponent?.UpdateBorderColor(coord.Item1, coord.Item2, ClearBorderColor);
+            }
+        }
+    }
+
+    private void DrawEverything()
+    {
+        // Fog
+        for (int i = 0; i < rows; i++)
+        {
+            for (int j = 0; j < cols; j++)
+            {
+                if (!Battlefield.isRevealed(i, j, fog))
+                {
+                    gridComponent?.UpdateColor(i, j, FogColor);
+                }
+            }
+        }
+
+        // Ships
+        foreach (Ship.Ship ship in ships)
+        {
+            foreach (Tuple<int, int> coord in ship.Coords)
+            {
+                if (Battlefield.isRevealed(coord.Item1, coord.Item2, fog))
+                {
+                    string color = Conversion.colorToString(Conversion.nameToColor(ship.Name));
+                    gridComponent?.UpdateColor(coord.Item1, coord.Item2, color);
+
+                    if (coord.Item1 == ship.Center.Item1 && coord.Item2 == ship.Center.Item2)
+                    {
+                        gridComponent?.UpdateText(ship.Center.Item1, ship.Center.Item2, directions[ship.Facing]);
+                    }
+
+                    if (Battlefield.isHit(coord.Item1, coord.Item2, grid))
+                    {
+                        gridComponent?.UpdateMiddleText(coord.Item1, coord.Item2, HealthChar);
+                    }
+                }
+            }
+        }
+
+        // Drone
+        if (drone is not null)
+        {
+            gridComponent?.UpdateSecondaryText(drone.Item1, drone.Item2, SecondaryChar);
+            gridComponent?.UpdateSecondaryColor(drone.Item1, drone.Item2, Conversion.colorToString(Conversion.nameToColor(Ship.Name.Spy)));
+        }
+
+        // Torpedoes
+        foreach (Tuple<int, int> coord in torpedoes)
+        {
+            if (Battlefield.isRevealed(coord.Item1, coord.Item2, fog))
+            {
+                gridComponent?.UpdateSecondaryText(coord.Item1, coord.Item2, SecondaryChar);
+                gridComponent?.UpdateSecondaryColor(coord.Item1, coord.Item2, Conversion.colorToString(Conversion.nameToColor(Ship.Name.Submarine)));
+            }
+        }
+
+
+        if (Battlefield.getRemainingHealth(Ship.Name.AircraftCarrier, grid) > 0)
+        {
+            // Path
+            var coords = Stream.peak(pathLength, stream);
+            foreach (Tuple<int, int> coord in coords)
+            {
+                gridComponent?.UpdateBorderColor(coord.Item1, coord.Item2, Conversion.colorToString(Conversion.nameToColor(Ship.Name.AircraftCarrier)));
+            }
+
+            // Plane
+            Tuple<int, int> plane = Stream.nth(stream, 0);
+            if (Battlefield.isRevealed(plane.Item1, plane.Item2, fog))
+            {
+                gridComponent?.UpdateSecondaryText(plane.Item1, plane.Item2, SecondaryChar);
+                gridComponent?.UpdateSecondaryColor(plane.Item1, plane.Item2, Conversion.colorToString(Conversion.nameToColor(Ship.Name.AircraftCarrier)));
+            }
+        }
+    }
+}
+

@@ -1,0 +1,156 @@
+﻿<div>
+    @for (int i = 0; i < Rows; i++)
+    {
+        int tempi = i;
+        <div style="display: grid; grid-auto-flow: column">
+            @for (int j = 0; j < Cols; j++)
+            {
+                int tempj = j;
+                <div class="cell" style="border-color: @borderColors[i, j]">
+                    <div class="under" style="background-color: @cellColors[i, j]; opacity: @cellOpacities[i, j]">@cellTexts[i, j]</div>
+                    <div class="under" style="font-weight: bold; font-size: xx-large">@middleTexts[i, j]</div>
+                    <button class="over" style="color: @secondaryColors[i, j]" @onclick="() => ClickAction.Invoke(tempi, tempj)" @onmouseenter="() => HoverAction.Invoke(tempi, tempj)" @onmouseleave="() => LeaveAction.Invoke(tempi, tempj)">@secondaryTexts[i, j]</button>
+                </div>
+            }
+        </div>
+    }
+</div>
+
+<style>
+    .cell {
+        position: relative;
+        width: 50px;
+        height: 50px;
+        min-height: 50px;
+        min-width: 50px;
+        margin: 1px;
+        border: 1px solid;
+        text-align: center;
+        line-height: 50px;
+    }
+
+    .under {
+        position: absolute;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+    }
+
+    .over {
+        position: absolute;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background: transparent;
+        border: none;
+    }
+</style>
+
+@code {
+    [Parameter]
+    public required int Rows { get; set; }
+    [Parameter]
+    public required int Cols { get; set; }
+
+    [Parameter]
+    public required Action<int, int> ClickAction { get; set; }
+    [Parameter]
+    public required Action<int, int> HoverAction { get; set; }
+    [Parameter]
+    public required Action<int, int> LeaveAction { get; set; }
+
+    private int previousRows = 0;
+    private int previousCols = 0;
+
+    private string[,] cellColors = new string[0, 0];
+    private float[,] cellOpacities = new float[0, 0];
+    private string[,] cellTexts = new string[0, 0];
+    private string[,] secondaryTexts = new string[0, 0];
+    private string[,] secondaryColors = new string[0, 0];
+    private string[,] middleTexts = new string[0, 0];
+    private string[,] borderColors = new string[0, 0];
+
+    public void ForceRefresh(int rows, int cols)
+    {
+        Rows = rows;
+        Cols = cols;
+        OnParametersSet();
+    }
+
+    protected override void OnInitialized()
+    {
+        UpdateDimensions();
+    }
+
+    protected override void OnParametersSet()
+    {
+        if (previousRows != Rows || previousCols != Cols)
+        {
+            previousRows = Rows;
+            previousCols = Cols;
+            UpdateDimensions();
+        }
+    }
+
+    private void UpdateDimensions()
+    {
+        cellColors = new string[Rows, Cols];
+        cellOpacities = new float[Rows, Cols];
+        cellTexts = new string[Rows, Cols];
+        secondaryTexts = new string[Rows, Cols];
+        secondaryColors = new string[Rows, Cols];
+        middleTexts = new string[Rows, Cols];
+        borderColors = new string[Rows, Cols];
+
+        for (int i = 0; i < Rows; i++)
+        {
+            for (int j = 0; j < Cols; j++)
+            {
+                cellColors[i, j] = "white";
+                cellOpacities[i, j] = 1.0f;
+                cellTexts[i, j] = "\u200B";
+                secondaryTexts[i, j] = "\u200B";
+                secondaryColors[i, j] = "black";
+                middleTexts[i, j] = "\u200B";
+                borderColors[i, j] = "lightgray";
+            }
+        }
+    }
+
+    public void UpdateColor(int row, int col, string color)
+    {
+        cellColors[row, col] = color;
+    }
+
+    public void UpdateOpacity(int row, int col, float opacity)
+    {
+        cellOpacities[row, col] = opacity;
+    }
+
+    public void UpdateText(int row, int col, string text)
+    {
+        cellTexts[row, col] = text;
+    }
+
+    public void UpdateSecondaryText(int row, int col, string text)
+    {
+        secondaryTexts[row, col] = text;
+    }
+
+    public void UpdateSecondaryColor(int row, int col, string color)
+    {
+        secondaryColors[row, col] = color;
+    }
+
+    public void UpdateMiddleText(int row, int col, string text)
+    {
+        middleTexts[row, col] = text;
+    }
+
+    public void UpdateBorderColor(int row, int col, string color)
+    {
+        borderColors[row, col] = color;
+    }
+}
